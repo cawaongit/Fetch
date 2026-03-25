@@ -3,6 +3,7 @@
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
@@ -25,11 +26,29 @@ void hostname() {
   printf("%s@%s\n", getlogin(), hostname);
 }
 
-void os() {}
+void os() {
+  // OS infos can be found in /etc/os-release
+  FILE *file = fopen("/etc/os-release", "r");
+
+  char line[256];
+
+  if (file != NULL) {
+    while (fgets(line, sizeof(line), file)) {
+      printf("%s", line);
+    }
+
+    fclose(file);
+  } else {
+    fprintf(stderr, "Unable to read /etc/os-release");
+  }
+
+  printf("OS: %s\n");
+}
 
 void host() {
   // You can get the host product name into
   // /sys/devices/virtual/dmi/id/product_name
+  printf("Host: %s\n");
 }
 
 void kernel() {
@@ -48,29 +67,30 @@ void uptime() {
   printf("%ld mins\n", uptime.uptime);
 }
 
-void packages() {}
+void packages() { printf("Packages: %s\n"); }
 
-void shell() {}
+void shell() { printf("Shell: %s\n"); }
 
 void display() {}
 
 void wm() { printf("WM: (%s)\n", getenv("XDG_SESSION_TYPE")); }
 
-void theme() {}
+void theme() { printf("Theme: %s\n"); }
 
-void font() {}
+void font() { printf("Font: %s\n"); }
 
-void cursor() {}
+void cursor() { printf("Cursor: %s\n"); }
 
-void terminal() {}
+void terminal() { printf("Terminal: %s\n"); }
 
-void terminalFont() {}
+void terminalFont() { printf("Terminal Font: %s\n"); }
 
 void cpu() {
   // You can get the cpu infos with /proc/cpuinfo
+  printf("CPU: %s\n");
 }
 
-void gpu() {}
+void gpu() { printf("GPU: %s\n"); }
 
 void memory() {
   // You can get the memory infos with sysinfo and /proc/meminfo
@@ -80,9 +100,9 @@ void memory() {
          memory.totalram / 1024 / 1024 / 1024);
 }
 
-void swap() {}
+void swap() { printf("Swap: %s\n"); }
 
-void disk() {}
+void disk() { printf("Disk: %s\n"); }
 
 void localIp() {
   struct ifaddrs *ifap, *ifa;
@@ -94,19 +114,45 @@ void localIp() {
     if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
       sa = (struct sockaddr_in *)ifa->ifa_addr;
       addr = inet_ntoa(sa->sin_addr);
-      printf("Local IP (%s): %s\n", ifa->ifa_name, addr);
+      printf("Local IP (%s): %s/%s\n", ifa->ifa_name, addr);
     }
   }
 
   freeifaddrs(ifap);
 }
 
+void battery() {
+  // Only printed when used on laptop
+  FILE *model_name_file = fopen("/sys/class/power_supply/BAT0/model_name", "r");
+  char model_name[256];
+
+  FILE *capacity_file = fopen("/sys/class/power_supply/BAT0/capacity", "r");
+  char capacity[256];
+
+  if (model_name_file != NULL) {
+    while (fgets(model_name, sizeof(model_name), model_name_file)) {
+      model_name[strcspn(model_name, "\n")] = '\0';
+      printf("Battery (%s): ", model_name);
+    }
+  }
+
+  if (capacity_file != NULL) {
+    while (fgets(capacity, sizeof(capacity), capacity_file)) {
+      capacity[strcspn(capacity, "\n")] = '\0';
+      printf("%s%%\n", capacity);
+    }
+    fclose(capacity_file);
+  } else {
+    // fprintf(stderr, "Unable to read /etc/os-release");
+  }
+};
+
 void locale() { printf("Locale: %s", setlocale(LC_ALL, "")); }
 
 int main() {
   // printf(ANSI_COLOR_RED "F" ANSI_COLOR_RED);
   hostname();
-  os();
+  // os();
   host();
   kernel();
   uptime();
@@ -125,6 +171,7 @@ int main() {
   swap();
   disk();
   localIp();
+  battery();
   locale();
   return 0;
 }
